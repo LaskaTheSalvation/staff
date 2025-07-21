@@ -3,8 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar/Navbar";
 import Sidebar from "./components/Sidebar/Sidebar";
 
-import Home from "./pages/Home";
-import Placeholder from "./pages/Placeholder";
+import Home from "./Pages/Home";
+import Placeholder from "./Pages/PlaceHolder";
 
 const App = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
