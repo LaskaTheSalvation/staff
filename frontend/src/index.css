@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+
+/* ========================================
+🌑 Custom dark mode variant pakai Tailwind 4.1
+======================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ===========================
+ 🎨 THEME VARIABLE SECTION
+=========================== */
+@theme {
+  /* === WARNA UTAMA SISTEM === */
+  --color-accent: #FCA311;
+  --color-sidebar: #14213D;
+  --color-button-blue: #0B1D51;
+  --color-bg-light: #EEF6FF;
+  --color-hover-delete: #F43000;
+  --color-danger: #E10000;
+
+  /* === FONT === */
+  --font-body: 'Poppins', sans-serif;
+  --font-heading: 'Montserrat', sans-serif;
+
+  /* === UI === */
+  --radius-default: 0.75rem;
+  --shadow-elevated: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* ===========================
+ 🌑 DARK MODE VARIABLE OVERRIDE
+=========================== */
+@layer base {
+  .dark {
+    --color-sidebar: #0B192C;
+    --color-button-blue: #00022C;
+    --color-bg-light: #1E3E62;
+    --color-text-light: #EEF6FF;
+    --color-card-bg: #B7D6F2;
+    --color-card-secondary: #82A9DF;
+  }
+}
+
+/* ===========================
+ 🧱 BASE LAYER
+=========================== */
+@layer base {
+  html {
+    font-family: var(--font-body);
+    background-color: var(--color-bg-light);
+    color: var(--color-sidebar);
+  }
+
+  .dark html {
+    color: var(--color-text-light);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+/* ===========================
+ 🧩 COMPONENTS
+=========================== */
+@layer components {
+  .btn-primary {
+    @apply bg-[var(--color-button-blue)] text-white px-4 py-2 rounded-default font-semibold hover:opacity-90 transition;
+  }
+
+  .btn-danger {
+    @apply bg-[var(--color-danger)] text-white px-4 py-2 rounded-default font-semibold hover:bg-[var(--color-hover-delete)] transition;
+  }
+
+  .btn-accent {
+    @apply bg-[var(--color-accent)] text-[var(--color-sidebar)] px-4 py-2 rounded-default font-semibold hover:opacity-90;
+  }
+
+  .card {
+    @apply bg-[var(--color-bg-light)] rounded-default p-6 shadow-elevated;
+  }
+
+  .sidebar-link {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all;
+  }
+
+  .sidebar-link-active {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: var(--color-sidebar);
+    font-weight: 600;
+    border-radius: 9999px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .input-field {
+    @apply bg-white border border-[var(--color-button-blue)] text-[var(--color-sidebar)] px-4 py-2 rounded-default focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)];
+  }
+}
+
+/* ===========================
+ ⚙ UTILITIES
+=========================== */
+@layer utilities {
+  .bg-accent { background-color: var(--color-accent); }
+  .bg-sidebar { background-color: var(--color-sidebar); }
+  .bg-light { background-color: var(--color-bg-light); }
+  .bg-danger { background-color: var(--color-danger); }
+  .bg-button-blue { background-color: var(--color-button-blue); }
+
+  .text-accent { color: var(--color-accent); }
+  .text-sidebar { color: var(--color-sidebar); }
+  .text-light { color: var(--color-bg-light); }
+
+  .rounded-default { border-radius: var(--radius-default); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+
+  .font-heading { font-family: var(--font-heading); }
+  .font-body { font-family: var(--font-body); }
+}
+
+
+/* Custom CSS Anda */
