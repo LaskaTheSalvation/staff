@@ -29,7 +29,7 @@ const BannerCard = ({ id, onRemove, selectedFile, onFileChange }) => {
       <div className="ml-2 bg-white dark:bg-[var(--color-card-bg)] rounded-lg shadow-elevated px-6 pt-5 pb-6 border border-transparent">
         {/* Judul & deskripsi */}
         <h3 className="text-lg font-bold mb-0.5 text-[var(--color-button-blue)]">Banner</h3>
-        <p className="text-[13px] mb-4 text-[var(--color-button-blue)]">lorem ipsum wkwkwkwkwkw</p>
+        <p className="text-[13px] mb-4 text-[var(--color-button-blue)]"></p>
 
         {/* Input file (bg biru sekunder di darkmode) */}
         <div className="flex w-full mb-5">

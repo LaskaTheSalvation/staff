@@ -5,6 +5,8 @@ import Sidebar from "../Sidebar/Sidebar";
 
 // Import halaman-halaman yang akan digunakan di dalam layout staff
 import Home from "../../Pages/staff/induk/Home";
+import AboutUs from "../../Pages/staff/induk/AboutUs";
+import Media from "../../Pages/staff/induk/Media";
 import Placeholder from "../../Pages/PlaceHolder";
 
 export const Layout = () => {
@@ -24,8 +26,8 @@ export const Layout = () => {
             {/* Redirect dari /staff ke /staff/home sebagai halaman default */}
             <Route path="/" element={<Navigate to="/staff/home" replace />} />
             <Route path="/home" element={<Home />} />
-            <Route path="/about-us" element={<Placeholder title="About Us" />} />
-            <Route path="/media" element={<Placeholder title="Media" />} />
+            <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/media" element={<Media />} />
             <Route path="/service" element={<Placeholder title="Service" />} />
             <Route path="/contact" element={<Placeholder title="Contact" />} />
             <Route path="/halaman" element={<Placeholder title="Halaman" />} />

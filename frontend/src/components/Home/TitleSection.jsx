@@ -6,7 +6,7 @@ const TitleSection = () => {
       <h2 className="text-sm font-semibold text-[var(--color-sidebar)] dark:text-[var(--color-text-light)] mb-1">
         Title
       </h2>
-      <p className="text-xs text-gray-500 mb-2">lorem ipsum wkwkwkwkwkw</p>
+      <p className="text-xs text-gray-500 mb-2"></p>
 
       <input
         type="text"
