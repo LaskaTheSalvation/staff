@@ -50,25 +50,34 @@ Backend Django application for managing staff members of PT. BUMI KARTANEGARA.
 
 1. Install dependencies:
    ```bash
-   pip install django
+   pip install -r requirements.txt
    ```
 
-2. Run migrations:
+2. Configure MySQL database:
+   - Ensure MySQL/MariaDB is installed and running
+   - Create a database named `bumi_kartanegara`
+   - Update database credentials in `backend/settings.py` if needed
+   - Import the schema from `bumi_kartanegara.sql`:
+     ```bash
+     mysql -u root -p bumi_kartanegara < ../bumi_kartanegara.sql
+     ```
+
+3. Run migrations:
    ```bash
    python manage.py migrate
    ```
 
-3. Create sample data:
+4. Create sample data:
    ```bash
    python manage.py create_staff_data
    ```
 
-4. Create superuser for admin access:
+5. Create superuser for admin access:
    ```bash
    python manage.py createsuperuser
    ```
 
-5. Run development server:
+6. Run development server:
    ```bash
    python manage.py runserver
    ```
@@ -83,7 +92,7 @@ Access the Django admin at `/admin/` to manage:
 
 ## Database Schema
 
-The models are designed to match the SQL schema in `bumi_kartanegara.sql`, focusing specifically on staff-related functionality as requested.
+The models are designed to match the MySQL schema in `bumi_kartanegara.sql`, focusing specifically on staff-related functionality. The application uses MySQL/MariaDB as the database backend instead of SQLite for better performance and production readiness.
 
 ## Usage Examples
 
