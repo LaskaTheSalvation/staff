@@ -8,6 +8,7 @@ import {
 import ServiceTitleCard from "./components/ServiceTitleCard";
 // Ganti nama import agar lebih jelas dan sesuai dengan fungsinya (menampilkan tabel)
 import ServiceTableCard from "./components/ServiceContentCard"; 
+import { serviceAPI } from "../../services/api"; 
 
 const componentMap = {
   "Title": ServiceTitleCard,
@@ -23,6 +24,27 @@ const ServiceSection = () => {
   });
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [servicesData, setServicesData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load services from API
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        setLoading(true);
+        const data = await serviceAPI.getAll();
+        if (data.results) {
+          setServicesData(data.results);
+        }
+      } catch (err) {
+        console.error('Failed to load services:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadServices();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("service_contents", JSON.stringify(contents));
@@ -71,6 +93,31 @@ const ServiceSection = () => {
 
       {isExpanded && (
         <div className="space-y-4">
+          {/* Display API data if available */}
+          {servicesData.length > 0 && (
+            <div className="mb-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-3">
+                Services from Backend API:
+              </h3>
+              <div className="space-y-2">
+                {servicesData.map((service) => (
+                  <div key={service.id} className="border-l-4 border-green-400 pl-3">
+                    <h4 className="font-medium text-green-700 dark:text-green-300">{service.title}</h4>
+                    {service.description && (
+                      <p className="text-green-600 dark:text-green-400 text-sm">{service.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {loading && (
+            <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
+              <p className="text-yellow-800 dark:text-yellow-200">Loading services from backend...</p>
+            </div>
+          )}
+
           {contents.length > 0 ? (
             contents.map((content) => {
               const Component = componentMap[content.type];
@@ -95,11 +142,11 @@ const ServiceSection = () => {
                 />
               );
             })
-          ) : (
+          ) : servicesData.length === 0 && !loading ? (
             <div className="bg-white dark:bg-[var(--color-card-secondary)] border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-center text-gray-500">
               Belum ada layanan ditambahkan. Klik ikon '+' untuk memulai.
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </section>
