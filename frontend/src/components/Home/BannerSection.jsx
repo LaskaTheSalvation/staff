@@ -8,6 +8,7 @@ import {
 import BannerCard from "./components/BannerCard";
 import TextInputCard from "./components/TextInputCard";
 import ButtonLinkCard from "./components/ButtonLinkCard";
+import { homeContentAPI } from "../../services/api";
 
 const componentMap = {
   "Upload Banner": BannerCard,
@@ -19,7 +20,7 @@ const componentMap = {
 const dropdownOptions = ["Upload Banner", "Title", "Text", "Button Link"];
 
 const BannerSection = () => {
-  // --- State dari localStorage saat mount
+  // --- State from localStorage and API
   const [contents, setContents] = useState(() => {
     const saved = localStorage.getItem("banner_contents");
     return saved ? JSON.parse(saved) : [];
@@ -27,11 +28,51 @@ const BannerSection = () => {
   const [selectedFiles, setSelectedFiles] = useState({});
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // --- Persist ke localStorage setiap ada perubahan contents
+  // Load content from API on component mount
+  useEffect(() => {
+    const loadBannerContent = async () => {
+      try {
+        setLoading(true);
+        const data = await homeContentAPI.getAll();
+        if (data.results && data.results.length > 0) {
+          // Convert API data to component format
+          const apiContent = data.results.map((item, index) => ({
+            id: item.id,
+            type: "Banner",
+            title: item.title,
+            description: item.description,
+            image_path: item.image_path,
+          }));
+          setContents(apiContent);
+        }
+      } catch (err) {
+        console.error('Failed to load banner content:', err);
+        setError('Failed to load content from server');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBannerContent();
+  }, []);
+
+  // Save to localStorage when contents change
   useEffect(() => {
     localStorage.setItem("banner_contents", JSON.stringify(contents));
   }, [contents]);
+
+  // Save content to API
+  const saveContentToAPI = async (contentData) => {
+    try {
+      await homeContentAPI.create(contentData);
+    } catch (err) {
+      console.error('Failed to save content:', err);
+      setError('Failed to save content to server');
+    }
+  };
 
   const handleAddContent = (type) => {
     const id = Date.now() + Math.random();
