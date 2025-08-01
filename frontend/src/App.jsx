@@ -1,22 +1,31 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout/Layout";
+import StaffLogin from "./pages/login/StaffLogin";
+import StaffRoutes from "./routes/StaffRouter";
+import ProtectedRoute from "./routes/ProtectedRoute"; // Tambahkan ini
 
 const App = () => {
   return (
     <Router>
-      {/*
-        Struktur routing utama.
-        - Rute untuk halaman login bisa ditambahkan di sini (di luar Layout).
-        - Semua rute yang memerlukan Sidebar dan Navbar dibungkus oleh komponen Layout.
-      */}
       <Routes>
-        {/* Rute untuk halaman login atau landing page publik bisa diletakkan di sini */}
-        {/* <Route path="/login" element={<LoginPage />} /> */}
+        {/* Route untuk halaman login staff */}
+        <Route path="/login/staff" element={<StaffLogin />} />
+
+        {/* Route untuk landing page publik */}
         <Route path="/" element={<div>Halaman Landing Page Publik</div>} />
-        
-        {/* Semua halaman untuk staff akan berada di bawah /staff dan menggunakan Layout */}
-        <Route path="/staff/*" element={<Layout />} />
+
+        {/* Semua halaman untuk staff, sekarang diproteksi */}
+        <Route
+          path="/staff/*"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="*" element={<StaffRoutes />} />
+        </Route>
       </Routes>
     </Router>
   );

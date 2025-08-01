@@ -1,31 +1,26 @@
-// src/components/AboutUs/VisiMisiSection.jsx
 import React, { useState, useEffect } from "react";
 import { PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
 
-// Perbaikan jalur impor di sini:
-// Jika VisiMisiSection.jsx berada di `src/components/AboutUs/`
-// Maka VisiCard.jsx ada di `src/components/AboutUs/VisiMisi/components/`
-// Jalur relatifnya harus seperti ini:
 import VisiCard from "./components/VisiCard";
-import MisiCard from "./components/MisiCard"; // Asumsi MisiCard juga di folder yang sama
+import MisiCard from "./components/MisiCard";
 
-const componentMap = {
-  Visi: VisiCard, // Pastikan nama di componentMap sesuai
-  Misi: MisiCard, // Pastikan nama di componentMap sesuai
+const componentMapVisiMisi = {
+  Visi: VisiCard,
+  Misi: MisiCard,
 };
 
-const dropdownOptions = ["Visi", "Misi"]; // Sesuaikan dengan opsi yang Anda inginkan
+const dropdownOptionsVisiMisi = ["Visi", "Misi"];
 
 const VisiMisiSection = () => {
   const [contents, setContents] = useState(() => {
-    const saved = localStorage.getItem("visi_misi_contents"); // Ubah key localStorage
+    const saved = localStorage.getItem("visi_misi_contents");
     return saved ? JSON.parse(saved) : [];
   });
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("visi_misi_contents", JSON.stringify(contents)); // Ubah key localStorage
+    localStorage.setItem("visi_misi_contents", JSON.stringify(contents));
   }, [contents]);
 
   const handleAddContent = (type) => {
@@ -47,14 +42,14 @@ const VisiMisiSection = () => {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             title="Tambah Konten"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             title="Sembunyikan / Tampilkan"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             {isExpanded ? (
               <ChevronUpIcon className="w-5 h-5" />
@@ -67,11 +62,11 @@ const VisiMisiSection = () => {
 
       {showDropdown && (
         <div className="mb-4 bg-white dark:bg-[var(--color-sidebar)] border border-gray-200 dark:border-gray-700 rounded-lg p-3 w-fit shadow-md">
-          {dropdownOptions.map((option) => (
+          {dropdownOptionsVisiMisi.map((option) => (
             <button
               key={option}
               onClick={() => handleAddContent(option)}
-              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white hover:text-[var(--color-accent)] py-1 px-3"
+              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white py-1 px-3"
             >
               + {option}
             </button>
@@ -88,7 +83,7 @@ const VisiMisiSection = () => {
           ) : (
             <div className="space-y-4">
               {contents.map((content) => {
-                const Component = componentMap[content.type];
+                const Component = componentMapVisiMisi[content.type];
                 if (!Component) return null;
                 return (
                   <Component

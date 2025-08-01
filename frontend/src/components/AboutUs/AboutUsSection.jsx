@@ -1,45 +1,53 @@
 import React, { useState, useEffect } from "react";
-import { PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
+import axios from "axios";
 
-import AboutTitleCard from "./components/AboutTitleCard";
-import AboutTextCard from "./components/AboutTextCard";
-import AboutPictureCard from "./components/AboutPictureCard";
-import AboutDescriptionCard from "./components/AboutDescriptionCard";
-// AboutButtonLinkCard is no longer imported as it's not used
+const fields = [
+  { key: "description", label: "Description" },
+  { key: "vision", label: "Vision" },
+  { key: "mission", label: "Mission" },
+  { key: "history", label: "History" },
+];
 
-const componentMap = {
-  Title: AboutTitleCard,
-  Text: AboutTextCard,
-  Picture: AboutPictureCard,
-  Description: AboutDescriptionCard,
-  // ButtonLink: AboutButtonLinkCard, <-- Removed
-};
+const AboutUsSection = ({ token, companyId }) => {
+  const [data, setData] = useState(null);
+  const [edit, setEdit] = useState(null); // {key, value}
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-const dropdownOptions = ["Title", "Text", "Picture", "Description"]; // Removed "ButtonLink"
-
-const AboutUsSection = () => {
-  const [contents, setContents] = useState(() => {
-    const saved = localStorage.getItem("about_us_contents");
-    // Ensure that any saved content of type 'ButtonLink' is filtered out if desired,
-    // or handle gracefully if the component no longer exists.
-    // For now, it will just not render 'ButtonLink' types.
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [showDropdown, setShowDropdown] = useState(false);
-
+  // Ambil data from backend saat mount
   useEffect(() => {
-    localStorage.setItem("about_us_contents", JSON.stringify(contents));
-  }, [contents]);
+    if (!token || !companyId) return;
+    setLoading(true);
+    axios
+      .get(`/api/about-us/?company_id=${companyId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then(res => {
+        setData(res.data.results?.[0] || res.data); // tergantung response DRF
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [token, companyId]);
 
-  const handleAddContent = (type) => {
-    setContents((prev) => [...prev, { id: Date.now() + Math.random(), type }]);
-    setShowDropdown(false);
+  // Simpan perubahan ke backend
+  const handleSave = async (fieldKey, value) => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      await axios.patch(
+        `/api/about-us/${data.id}/`,
+        { [fieldKey]: value },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setData(prev => ({ ...prev, [fieldKey]: value }));
+      setEdit(null);
+    } catch (e) {
+      // handle error (optional: show toast)
+    }
+    setSaving(false);
   };
 
-  const handleRemoveContent = (id) => {
-    setContents((prev) => prev.filter((c) => c.id !== id));
-  };
+  if (loading) return <div>Loading About Us...</div>;
 
   return (
     <section className="mb-10">
@@ -47,65 +55,50 @@ const AboutUsSection = () => {
         <h2 className="text-lg font-bold text-[var(--color-button-blue)] dark:text-white tracking-wide">
           ABOUT US
         </h2>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            title="Tambah Konten"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
-          >
-            <PlusIcon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            title="Sembunyikan / Tampilkan"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
-          >
-            {isExpanded ? (
-              <ChevronUpIcon className="w-5 h-5" />
-            ) : (
-              <ChevronDownIcon className="w-5 h-5" />
-            )}
-          </button>
-        </div>
       </div>
-
-      {showDropdown && (
-        <div className="mb-4 bg-white dark:bg-[var(--color-sidebar)] border border-gray-200 dark:border-gray-700 rounded-lg p-3 w-fit shadow-md">
-          {dropdownOptions.map((option) => (
-            <button
-              key={option}
-              onClick={() => handleAddContent(option)}
-              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white hover:text-[var(--color-accent)] py-1 px-3"
-            >
-              + {option}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isExpanded && (
-        <>
-          {contents.length === 0 ? (
-            <div className="bg-white dark:bg-[var(--color-card-secondary)] border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-center text-gray-500 dark:text-black">
-              Belum ada konten About Us.
+      <div className="space-y-4">
+        {fields.map(({ key, label }) => (
+          <div key={key} className="bg-white dark:bg-[var(--color-card-secondary)] border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <span className="font-semibold text-[var(--color-button-blue)] dark:text-white">{label}</span>
+              {!edit && (
+                <button
+                  onClick={() => setEdit({ key, value: data?.[key] || "" })}
+                  className="text-xs px-2 py-0.5 rounded bg-[var(--color-accent)] text-white hover:bg-[var(--color-button-blue)]"
+                >
+                  Edit
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="space-y-4">
-              {contents.map((content) => {
-                const Component = componentMap[content.type];
-                if (!Component) return null; // If a saved type (like 'ButtonLink') no longer has a component, it won't render.
-                return (
-                  <Component
-                    key={content.id}
-                    id={content.id}
-                    onRemove={handleRemoveContent}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+            {edit && edit.key === key ? (
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  handleSave(key, edit.value);
+                }}
+              >
+                <textarea
+                  className="w-full rounded border border-gray-300 p-2 mb-2 text-sm"
+                  rows={4}
+                  value={edit.value}
+                  onChange={e => setEdit({ key, value: e.target.value })}
+                  disabled={saving}
+                />
+                <div className="flex gap-2">
+                  <button type="submit" className="px-3 py-1 rounded bg-[var(--color-button-blue)] text-white text-xs" disabled={saving}>
+                    {saving ? "Saving..." : "Save"}
+                  </button>
+                  <button type="button" onClick={() => setEdit(null)} className="px-3 py-1 rounded bg-gray-300 text-xs">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="text-sm text-gray-700 dark:text-white/80 whitespace-pre-line">{data?.[key] || <span className="italic text-gray-400">Belum ada {label}</span>}</p>
+            )}
+          </div>
+        ))}
+      </div>
     </section>
   );
 };

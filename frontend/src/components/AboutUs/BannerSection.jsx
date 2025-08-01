@@ -5,13 +5,13 @@ import TitleCard from "./components/TitleCard";
 import PictureCard from "./components/PictureCard";
 import DescriptionCard from "./components/DescriptionCard";
 
-const componentMap = {
+const componentMapBanner = {
   Title: TitleCard,
   Picture: PictureCard,
   Description: DescriptionCard,
 };
 
-const dropdownOptions = ["Title", "Picture", "Description"];
+const dropdownOptionsBanner = ["Title", "Picture", "Description"];
 
 const BannerSection = () => {
   const [contents, setContents] = useState(() => {
@@ -44,14 +44,14 @@ const BannerSection = () => {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             title="Tambah Konten"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             title="Sembunyikan / Tampilkan"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             {isExpanded ? (
               <ChevronUpIcon className="w-5 h-5" />
@@ -64,11 +64,11 @@ const BannerSection = () => {
 
       {showDropdown && (
         <div className="mb-4 bg-white dark:bg-[var(--color-sidebar)] border border-gray-200 dark:border-gray-700 rounded-lg p-3 w-fit shadow-md">
-          {dropdownOptions.map((option) => (
+          {dropdownOptionsBanner.map((option) => (
             <button
               key={option}
               onClick={() => handleAddContent(option)}
-              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white hover:text-[var(--color-accent)] py-1 px-3"
+              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white py-1 px-3"
             >
               + {option}
             </button>
@@ -85,7 +85,7 @@ const BannerSection = () => {
           ) : (
             <div className="space-y-4">
               {contents.map((content) => {
-                const Component = componentMap[content.type];
+                const Component = componentMapBanner[content.type];
                 if (!Component) return null;
                 return (
                   <Component

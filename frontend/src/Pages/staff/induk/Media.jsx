@@ -5,7 +5,7 @@ export default function Media() {
   return (
     <main>
       <BannerSection />
-        <GallerySection />  
+      <GallerySection />  
       {/* Tambahkan komponen lain yang diperlukan di sini */}
     </main>
   );

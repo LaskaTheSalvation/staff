@@ -6,127 +6,109 @@ import {
   PencilSquareIcon,
   PlusIcon,
 } from "@heroicons/react/24/solid";
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
 
-// --- Konstanta untuk validasi ---
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const AboutPictureCard = ({ id, onRemove }) => {
   const [rows, setRows] = useState([]);
-  const [error, setError] = useState("");
+  const [alertInfo, setAlertInfo] = useState({ open: false, severity: 'info', message: '' });
 
-  // State untuk menangani proses inline editing yang lebih baik
-  const [editingRowId, setEditingRowId] = useState(null);
-  const [editingRowData, setEditingRowData] = useState(null);
+  const showAlert = (severity, message) => {
+    setAlertInfo({ open: true, severity, message });
+    setTimeout(() => setAlertInfo({ open: false, severity: 'info', message: '' }), 3000);
+  };
 
-  // Efek untuk membersihkan preview URL saat komponen tidak lagi digunakan
   useEffect(() => {
     return () => {
-      rows.forEach((row) => {
+      rows.forEach(row => {
         if (row.preview) URL.revokeObjectURL(row.preview);
       });
-      if (editingRowData?.preview) {
-        URL.revokeObjectURL(editingRowData.preview);
-      }
     };
-  }, [rows, editingRowData]);
-
-  // --- Fungsi-fungsi Handler yang Telah Disempurnakan ---
-
-  const handleEdit = (row) => {
-    if (editingRowId) {
-      setError("Harap selesaikan proses edit yang sedang berjalan.");
-      return;
-    }
-    setError("");
-    setEditingRowId(row.id);
-    setEditingRowData({ ...row });
-  };
-
-  const handleCancel = () => {
-    if (editingRowData?.preview) {
-      const isNew = !rows.find(r => r.id === editingRowData.id);
-      if (isNew) URL.revokeObjectURL(editingRowData.preview);
-    }
-    setEditingRowId(null);
-    setEditingRowData(null);
-    setError("");
-  };
-
-  const handleSave = () => {
-    // Validasi
-    if (!editingRowData.nama?.trim() || !editingRowData.title?.trim()) {
-      setError("Nama dan Title wajib diisi.");
-      return;
-    }
-    if (!editingRowData.file) {
-      setError("Wajib mengunggah gambar.");
-      return;
-    }
-
-    const isUpdating = rows.some(row => row.id === editingRowId);
-    if (isUpdating) {
-      setRows(prev => prev.map(row => (row.id === editingRowId ? editingRowData : row)));
-    } else {
-      setRows(prev => [...prev, editingRowData]);
-    }
-    
-    console.log("Menyimpan data:", editingRowData);
-    handleCancel();
-  };
-
-  const handleDelete = (rowId, rowName) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus "${rowName}"?`)) {
-      const rowToDelete = rows.find((r) => r.id === rowId);
-      if (rowToDelete?.preview) URL.revokeObjectURL(rowToDelete.preview);
-      setRows((prev) => prev.filter((row) => row.id !== rowId));
-    }
-  };
+  }, [rows]);
   
+  const hasUnsavedChanges = () => rows.some(r => r.isEditing);
+
   const addRow = () => {
-    if (editingRowId) {
-      setError("Harap selesaikan proses edit yang sedang berjalan.");
+    if (hasUnsavedChanges()) {
+      showAlert('warning', 'Please save or cancel existing edits first.');
       return;
     }
-    const newId = Date.now();
-    const newRow = { id: newId, nama: "", title: "", file: null, preview: "" };
-    setEditingRowId(newId);
-    setEditingRowData(newRow);
-    setError("");
-  };
-  
-  const handleInputChange = (field, value) => {
-    setEditingRowData(prev => ({ ...prev, [field]: value }));
+    setRows(prev => [...prev, { id: Date.now(), nama: "", title: "", file: null, preview: "", isEditing: true, isNew: true }]);
   };
 
-  const handleFileChange = (e) => {
+  const handleChange = (rowId, field, value) => {
+    setRows(prev => prev.map(row => (row.id === rowId ? { ...row, [field]: value } : row)));
+  };
+
+  const handleFileChange = (rowId, e) => {
     const file = e.target.files[0];
-    e.target.value = null; 
+    e.target.value = null;
     if (!file) return;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError(`Format gambar harus ${ALLOWED_TYPES.join(', ')}.`);
+      showAlert('error', `Format must be ${ALLOWED_TYPES.join(', ')}.`);
       return;
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      setError(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE / 1024 / 1024}MB.`);
+      showAlert('error', `Max size is ${MAX_IMAGE_SIZE / 1024 / 1024}MB.`);
       return;
     }
     
-    if (editingRowData.preview) URL.revokeObjectURL(editingRowData.preview);
-    
     const preview = URL.createObjectURL(file);
-    setError("");
-    setEditingRowData(prev => ({ ...prev, file, preview }));
+    setRows(prev => prev.map(row => {
+      if (row.id === rowId) {
+        if (row.preview) URL.revokeObjectURL(row.preview);
+        return { ...row, file, preview };
+      }
+      return row;
+    }));
   };
 
-  const removeImage = () => {
-    if (editingRowData.preview) URL.revokeObjectURL(editingRowData.preview);
-    setEditingRowData(prev => ({ ...prev, file: null, preview: "" }));
+  const saveRow = (rowId) => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row.nama.trim() || !row.title.trim() || !row.file) {
+      showAlert('error', 'All fields and image are required.');
+      return;
+    }
+    setRows(prev => prev.map(r => (r.id === rowId ? { ...r, isEditing: false, isNew: false } : r)));
+    showAlert('success', 'Image row saved.');
   };
 
-  // Render list yang mencakup baris yang sedang diedit
-  const rowsToRender = [...rows, editingRowData].filter(Boolean);
+  const editRow = (rowId) => {
+    if (hasUnsavedChanges()) {
+      showAlert('warning', 'Please save other edits first.');
+      return;
+    }
+    setRows(prev => prev.map(row => (row.id === rowId ? { ...row, isEditing: true } : row)));
+  };
+
+  const deleteRow = (rowId) => {
+    const rowToDelete = rows.find(r => r.id === rowId);
+    if (rowToDelete?.preview) URL.revokeObjectURL(rowToDelete.preview);
+    setRows(prev => prev.filter(row => row.id !== rowId));
+  };
+
+  const cancelEdit = (rowId) => {
+    const row = rows.find(r => r.id === rowId);
+    if (row.isNew) {
+      deleteRow(rowId);
+    } else {
+      setRows(prev => prev.map(r => r.id === rowId ? { ...r, isEditing: false } : r));
+    }
+  };
+
+  const removeImage = (rowId) => {
+    setRows(prev => prev.map(row => {
+      if (row.id === rowId) {
+        if (row.preview) URL.revokeObjectURL(row.preview);
+        return { ...row, file: null, preview: "" };
+      }
+      return row;
+    }));
+  };
 
   return (
     <div className="relative mb-4">
@@ -134,9 +116,7 @@ const AboutPictureCard = ({ id, onRemove }) => {
       <button
         onClick={() => onRemove(id)}
         className="absolute top-3 right-3 p-1 text-gray-400 dark:text-gray-500 z-10"
-        title="Hapus Picture Card"
-        type="button"
-      >
+        title="Hapus Picture Card" type="button">
         <XMarkIcon className="w-5 h-5" />
       </button>
 
@@ -145,89 +125,75 @@ const AboutPictureCard = ({ id, onRemove }) => {
         <p className="text-[13px] mb-4 text-[var(--color-button-blue)]">
           Masukkan gambar dan info pada tabel di bawah.
         </p>
-        {error && (
-          <p className="text-red-600 dark:text-red-400 mb-4 text-sm font-semibold">{error}</p>
+        
+        {alertInfo.open && (
+            <Stack sx={{ width: '100%', my: 2 }} spacing={2}>
+              <Alert severity={alertInfo.severity}>{alertInfo.message}</Alert>
+            </Stack>
         )}
 
         <div className="overflow-x-auto mb-4">
           <table className="w-full text-sm border-collapse table-fixed">
             <thead>
               <tr className="text-[var(--color-button-blue)] font-bold">
-                <th className="text-left p-2 border-b border-gray-300 dark:border-gray-600 w-[30%]">Nama</th>
+                <th className="text-left p-2 border-b border-gray-300 dark:border-gray-600 w-[25%]">Nama</th>
                 <th className="text-left p-2 border-b border-gray-300 dark:border-gray-600 w-[25%]">Title</th>
-                <th className="text-left p-2 border-b border-gray-300 dark:border-gray-600 w-[30%]">Gambar</th>
+                <th className="text-left p-2 border-b border-gray-300 dark:border-gray-600 w-[35%]">Gambar</th>
                 <th className="text-center p-2 border-b border-gray-300 dark:border-gray-600 w-[15%]">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {rowsToRender.map((row) => {
-                const isEditing = row.id === editingRowId;
-                const displayData = isEditing ? editingRowData : row;
-
-                return (
-                  <tr key={row.id} className="align-top">
-                    {/* NAMA & TITLE */}
-                    {['nama', 'title'].map(field => (
-                      <td key={field} className="p-2 border-b border-gray-200 dark:border-gray-500">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 focus:outline-none text-[var(--color-button-blue)] bg-transparent"
-                            value={displayData[field]}
-                            onChange={(e) => handleInputChange(field, e.target.value)}
-                            placeholder={`Masukkan ${field}`}
-                          />
-                        ) : (
-                          <span className="text-[var(--color-button-blue)]">{displayData[field]}</span>
-                        )}
-                      </td>
-                    ))}
-
-                    {/* GAMBAR */}
-                    <td className="p-2 border-b border-gray-200 dark:border-gray-500">
-                      {isEditing ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="inline-block cursor-pointer px-3 py-1 bg-[var(--color-button-blue)] text-white rounded text-xs">
-                            Pilih Gambar
-                            <input type="file" accept={ALLOWED_TYPES.join(',')} className="hidden" onChange={handleFileChange} />
-                          </label>
-                          {displayData.preview && <img src={displayData.preview} alt="preview" className="w-14 h-14 rounded object-cover border" />}
-                          {displayData.file && <button onClick={removeImage} className="text-red-500 p-1" title="Hapus gambar"><TrashIcon className="w-5 h-5" /></button>}
-                        </div>
-                      ) : (
-                        displayData.preview && <img src={displayData.preview} alt={displayData.title} className="w-14 h-14 rounded object-cover border" />
-                      )}
-                    </td>
-
-                    {/* AKSI */}
-                    <td className="p-2 border-b border-gray-200 dark:border-gray-500 text-center">
-                      <div className="flex justify-center gap-2">
-                        {isEditing ? (
-                          <>
-                            {/* ✨ DIUBAH: Warna ikon centang diperbaiki */}
-                            <button onClick={handleSave} className="p-1 rounded" title="Simpan"><CheckIcon className="w-5 h-5 text-green-500" /></button>
-                            <button onClick={handleCancel} className="p-1 rounded" title="Batal"><XMarkIcon className="w-5 h-5 text-gray-500" /></button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => handleEdit(row)} className="p-1 rounded" title="Edit"><PencilSquareIcon className="w-5 h-5 text-yellow-500" /></button>
-                            <button onClick={() => handleDelete(row.id, row.nama)} className="p-1 rounded" title="Hapus"><TrashIcon className="w-5 h-5 text-red-500" /></button>
-                          </>
-                        )}
+              {rows.map(row => (
+                <tr key={row.id} className="align-top">
+                  <td className="p-2 border-b border-gray-200 dark:border-gray-500">
+                    {row.isEditing ? (
+                      <input type="text" className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 focus:outline-none text-[var(--color-button-blue)] bg-transparent" value={row.nama} onChange={(e) => handleChange(row.id, 'nama', e.target.value)} />
+                    ) : (
+                      <span className="text-[var(--color-button-blue)]">{row.nama}</span>
+                    )}
+                  </td>
+                  <td className="p-2 border-b border-gray-200 dark:border-gray-500">
+                     {row.isEditing ? (
+                      <input type="text" className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 focus:outline-none text-[var(--color-button-blue)] bg-transparent" value={row.title} onChange={(e) => handleChange(row.id, 'title', e.target.value)} />
+                    ) : (
+                      <span className="text-[var(--color-button-blue)]">{row.title}</span>
+                    )}
+                  </td>
+                  <td className="p-2 border-b border-gray-200 dark:border-gray-500">
+                    {row.isEditing ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="inline-block cursor-pointer px-3 py-1 bg-[var(--color-button-blue)] text-white rounded text-xs">
+                          Pilih Gambar
+                          <input type="file" accept={ALLOWED_TYPES.join(',')} className="hidden" onChange={(e) => handleFileChange(row.id, e)} />
+                        </label>
+                        {row.preview && <img src={row.preview} alt="preview" className="w-14 h-14 rounded object-cover border" />}
+                        {row.file && <button onClick={() => removeImage(row.id)} className="text-red-500 p-1" title="Hapus gambar"><TrashIcon className="w-5 h-5" /></button>}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                    ) : (
+                      row.preview && <img src={row.preview} alt={row.title} className="w-14 h-14 rounded object-cover border" />
+                    )}
+                  </td>
+                  <td className="p-2 border-b border-gray-200 dark:border-gray-500 text-center">
+                    <div className="flex justify-center gap-2">
+                      {row.isEditing ? (
+                        <>
+                          <button onClick={() => saveRow(row.id)} className="p-1 rounded" title="Simpan"><CheckIcon className="w-5 h-5 text-green-500" /></button>
+                          <button onClick={() => cancelEdit(row.id)} className="p-1 rounded" title="Batal"><XMarkIcon className="w-5 h-5 text-red-500" /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => editRow(row.id)} className="p-1 rounded" title="Edit"><PencilSquareIcon className="w-5 h-5 text-yellow-500" /></button>
+                          <button onClick={() => deleteRow(row.id)} className="p-1 rounded" title="Hapus"><TrashIcon className="w-5 h-5 text-red-500" /></button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        <button
-          onClick={addRow}
-          className="flex items-center gap-2 text-[var(--color-button-blue)] font-semibold"
-          title="Tambah Baris"
-          type="button"
-        >
+        <button onClick={addRow} className="flex items-center gap-2 text-[var(--color-button-blue)] font-semibold" title="Tambah Baris" type="button">
           <PlusIcon className="w-5 h-5" />
           Tambah Baris
         </button>

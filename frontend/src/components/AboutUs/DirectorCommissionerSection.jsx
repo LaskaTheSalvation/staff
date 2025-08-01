@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
-import TitleCard from "./components/DirectorTitleCard";
-import TextCard from "./components/DirectorTextCard";
-import ProfileCard from "./components/DirectorProfileCard";
+import DirectorTitleCard from "./components/DirectorTitleCard";
+import DirectorTextCard from "./components/DirectorTextCard";
+import DirectorProfileCard from "./components/DirectorProfileCard";
 
-const componentMap = {
-  Title: TitleCard,
-  Text: TextCard,
-  Profile: ProfileCard,
+const componentMapDirector = {
+  Title: DirectorTitleCard,
+  Text: DirectorTextCard,
+  Profile: DirectorProfileCard,
 };
-const dropdownOptions = ["Title", "Text", "Profile"];
+const dropdownOptionsDirector = ["Title", "Text", "Profile"];
 
 const DirectorCommissionerSection = () => {
   const [contents, setContents] = useState(() => {
@@ -42,14 +42,14 @@ const DirectorCommissionerSection = () => {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             title="Tambah Konten"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             title="Sembunyikan / Tampilkan"
-            className="text-[var(--color-button-blue)] dark:text-white hover:text-[var(--color-accent)]"
+            className="text-[var(--color-button-blue)] dark:text-white"
           >
             {isExpanded ? (
               <ChevronUpIcon className="w-5 h-5" />
@@ -62,11 +62,11 @@ const DirectorCommissionerSection = () => {
 
       {showDropdown && (
         <div className="mb-4 bg-white dark:bg-[var(--color-sidebar)] border border-gray-200 dark:border-gray-700 rounded-lg p-3 w-fit shadow-md">
-          {dropdownOptions.map((option) => (
+          {dropdownOptionsDirector.map((option) => (
             <button
               key={option}
               onClick={() => handleAddContent(option)}
-              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white hover:text-[var(--color-accent)] py-1 px-3"
+              className="block w-full text-left text-sm text-[var(--color-sidebar)] dark:text-white py-1 px-3"
             >
               + {option}
             </button>
@@ -83,15 +83,14 @@ const DirectorCommissionerSection = () => {
           ) : (
             <div className="space-y-4">
               {contents.map((content, i) => {
-                const Component = componentMap[content.type];
+                const Component = componentMapDirector[content.type];
                 if (!Component) return null;
-                // Untuk ProfileCard tambahkan nomor profil sesuai index
                 return (
                   <Component
                     key={content.id}
                     id={content.id}
                     onRemove={handleRemoveContent}
-                    profileNo={content.type === "Profile" ? (i === 0 ? 1 : i + 1) : undefined}
+                    profileNo={content.type === "Profile" ? i + 1 : undefined}
                   />
                 );
               })}
