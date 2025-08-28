@@ -1,10 +1,38 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
+class User(AbstractUser):
+    """Custom user with company, role, 2FA, avatar."""
+    ROLE_ADMIN = "admin"
+    ROLE_STAFF = "staff"
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, _("Admin")),
+        (ROLE_STAFF, _("Staff")),
+    ]
+
+    company = models.ForeignKey(
+        "Company", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="users"
+    )
+    profile_image = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_STAFF)
+    two_factor_enabled = models.BooleanField(default=False)
+    two_factor_secret = models.CharField(max_length=255, blank=True, null=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+
+    # `username`, `email`, `first_name`, `last_name`, `password`,
+    # `is_active`, `is_staff`, `is_superuser`, dll. sudah diwarisi.
+
+    class Meta:
+        ordering = ["username"]
+
+    def __str__(self):
+        return f"{self.username} ({self.get_role_display()})"
 
 class Company(models.Model):
-    """Company model matching the companies table from the SQL schema"""
+
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
