@@ -2,15 +2,17 @@ import React, { useState, useEffect } from "react";
 import { PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/solid";
 import GalleryTitleCard from "./components/GalleryTitleCard";
 import GalleryPictureCard from "./components/GalleryPictureCard";
+import EnhancedGalleryPictureCard from "./components/EnhancedGalleryPictureCard";
 import GalleryDescriptionCard from "./components/GalleryDescriptionCard";
 
 const componentMap = {
   Title: GalleryTitleCard,
   Picture: GalleryPictureCard,
+  "Enhanced Picture": EnhancedGalleryPictureCard, // New enhanced version
   Description: GalleryDescriptionCard,
 };
 
-const dropdownOptions = ["Title", "Picture", "Description"];
+const dropdownOptions = ["Title", "Enhanced Picture", "Description"];
 
 const GallerySection = () => {
   const [contents, setContents] = useState(() => {
