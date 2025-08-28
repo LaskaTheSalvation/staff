@@ -235,6 +235,42 @@ export const contentHistoryAPI = {
   getById: (id) => apiService.get(`/content-history/${id}/`),
 };
 
+export const galleryAPI = {
+  getAll: () => apiService.get('/galleries/'),
+  getById: (id) => apiService.get(`/galleries/${id}/`),
+  create: (data) => apiService.post('/galleries/', data),
+  update: (id, data) => apiService.patch(`/galleries/${id}/`, data),
+  delete: (id) => apiService.delete(`/galleries/${id}/`),
+  
+  // Get or create gallery for a company
+  getOrCreate: async (companyId) => {
+    try {
+      const galleries = await apiService.get(`/galleries/?company_id=${companyId}`);
+      if (galleries.results && galleries.results.length > 0) {
+        return galleries.results[0];
+      } else {
+        // Create default gallery for company
+        return await apiService.post('/galleries/', {
+          company: companyId,
+          name: 'Default Gallery',
+          description: 'Default gallery for curated content'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to get or create gallery:', error);
+      throw error;
+    }
+  },
+  
+  // Gallery items operations
+  items: {
+    list: (galleryId) => apiService.get(`/galleries/${galleryId}/items/`),
+    add: (galleryId, data) => apiService.post(`/galleries/${galleryId}/add_item/`, data),
+    update: (galleryId, itemId, data) => apiService.patch(`/galleries/${galleryId}/items/${itemId}/`, data),
+    remove: (galleryId, itemId) => apiService.delete(`/galleries/${galleryId}/items/${itemId}/`),
+  },
+};
+
 // Content management API
 export const contentAPI = {
   banner: {
@@ -249,14 +285,9 @@ export const contentAPI = {
     get: () => apiService.get('/content/about/'),
     save: (data) => apiService.post('/content/about/', data),
   },
-  directors: {
-    get: () => apiService.get('/content/directors/'),
-    save: (data) => apiService.post('/content/directors/', data),
-  },
-  gallery: {
-    get: () => apiService.get('/content/gallery/'),
-    save: (data) => apiService.post('/content/gallery/', data),
-  },
+  // Remove directors and gallery from contentAPI - they now use proper APIs
+  // directors should use teamMemberAPI
+  // gallery should use galleryAPI
 };
 
 // Legacy API (for backward compatibility)

@@ -21,6 +21,7 @@ router.register(r'media', views.MediaViewSet)
 router.register(r'social-media', views.SocialMediaViewSet)
 router.register(r'settings', views.SettingViewSet)
 router.register(r'content-history', views.ContentHistoryViewSet)
+router.register(r'galleries', views.GalleryViewSet)
 
 urlpatterns = [
     path("", views.index, name="index"),

@@ -13,14 +13,15 @@ import json
 from .models import (
     User, Company, TeamMember, UserLog, Category, HomeContent, 
     AboutUs, Service, Contact, Project, ProjectGallery, Testimonial, 
-    Client, News, Media, SocialMedia, Setting, ContentHistory
+    Client, News, Media, SocialMedia, Setting, ContentHistory, Gallery, GalleryItem
 )
 from .serializers import (
     CompanySerializer, UserSerializer, TeamMemberSerializer, UserLogSerializer,
     CategorySerializer, HomeContentSerializer, AboutUsSerializer, ServiceSerializer,
     ContactSerializer, ProjectSerializer, TestimonialSerializer, ClientSerializer,
     NewsSerializer, MediaSerializer, SocialMediaSerializer, SettingSerializer,
-    ContentHistorySerializer, BannerContentSerializer, ServiceContentSerializer
+    ContentHistorySerializer, BannerContentSerializer, ServiceContentSerializer,
+    GallerySerializer, GalleryItemSerializer
 )
 
 
@@ -251,6 +252,69 @@ class ContentHistoryViewSet(viewsets.ModelViewSet):
     queryset = ContentHistory.objects.all()
     serializer_class = ContentHistorySerializer
     permission_classes = [AllowAny]
+
+
+class GalleryViewSet(viewsets.ModelViewSet):
+    queryset = Gallery.objects.all()
+    serializer_class = GallerySerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """Filter galleries by company if specified"""
+        queryset = Gallery.objects.all()
+        company_id = self.request.query_params.get('company_id')
+        
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+        
+        return queryset.order_by('-created_at')
+    
+    @action(detail=True, methods=['get'])
+    def items(self, request, pk=None):
+        """Get all items for a specific gallery"""
+        gallery = self.get_object()
+        items = gallery.items.all().order_by('ordering', 'created_at')
+        serializer = GalleryItemSerializer(items, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        """Add a new item to a gallery"""
+        gallery = self.get_object()
+        data = request.data.copy()
+        data['gallery'] = gallery.id
+        
+        # Set ordering to next available position
+        if 'ordering' not in data:
+            last_item = gallery.items.order_by('-ordering').first()
+            data['ordering'] = (last_item.ordering + 1) if last_item else 0
+        
+        serializer = GalleryItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['patch', 'delete'], url_path='items/(?P<item_id>[^/.]+)')
+    def modify_item(self, request, pk=None, item_id=None):
+        """Update or delete a specific gallery item"""
+        gallery = self.get_object()
+        
+        try:
+            item = gallery.items.get(id=item_id)
+        except GalleryItem.DoesNotExist:
+            return Response({'error': 'Gallery item not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.method == 'PATCH':
+            serializer = GalleryItemSerializer(item, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif request.method == 'DELETE':
+            item.delete()
+            return Response({'message': 'Gallery item deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
 
 # Content Management API endpoints
