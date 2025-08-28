@@ -125,10 +125,87 @@ class NewsSerializer(serializers.ModelSerializer):
 class MediaSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
     uploaded_by_name = serializers.CharField(source='uploaded_by.username', read_only=True)
+    file_url = serializers.SerializerMethodField()
+    thumbnail_urls = serializers.SerializerMethodField()
+    display_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Media
-        fields = '__all__'
+        fields = [
+            'id', 'company', 'company_name', 'file', 'file_name', 'file_path',
+            'file_type', 'file_size', 'mime_type', 'title', 'alt_text', 'description',
+            'width', 'height', 'thumbnail_small', 'thumbnail_medium', 'thumbnail_large',
+            'uploaded_by', 'uploaded_by_name', 'created_at', 'updated_at',
+            'file_url', 'thumbnail_urls', 'display_name'
+        ]
+        read_only_fields = ['file_size', 'mime_type', 'width', 'height', 'created_at', 'updated_at']
+    
+    def get_file_url(self, obj):
+        """Get the URL for the main file"""
+        request = self.context.get('request')
+        if obj.file and hasattr(obj.file, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return obj.file_path  # Fallback for legacy entries
+    
+    def get_thumbnail_urls(self, obj):
+        """Get URLs for all thumbnail sizes"""
+        request = self.context.get('request')
+        thumbnails = {}
+        
+        if obj.is_image():
+            for size in ['small', 'medium', 'large']:
+                thumbnail_field = getattr(obj, f'thumbnail_{size}')
+                if thumbnail_field and hasattr(thumbnail_field, 'url'):
+                    url = thumbnail_field.url
+                    if request:
+                        url = request.build_absolute_uri(url)
+                    thumbnails[size] = url
+                else:
+                    # Fallback to main file
+                    thumbnails[size] = self.get_file_url(obj)
+        
+        return thumbnails
+    
+    def get_display_name(self, obj):
+        """Get display name for the media"""
+        return obj.get_display_name()
+
+
+class MediaUploadSerializer(serializers.ModelSerializer):
+    """Serializer specifically for file uploads"""
+    file = serializers.FileField(required=True)
+    
+    class Meta:
+        model = Media
+        fields = ['file', 'title', 'alt_text', 'description', 'company']
+    
+    def validate_file(self, value):
+        """Validate uploaded file"""
+        from .utils import validate_file_upload
+        
+        errors = validate_file_upload(value)
+        if errors:
+            raise serializers.ValidationError(errors)
+        return value
+    
+    def create(self, validated_data):
+        """Create media instance with file processing"""
+        from .utils import process_media_file
+        
+        uploaded_file = validated_data['file']
+        
+        # Create media instance
+        media = Media(**validated_data)
+        
+        # Process the file and create thumbnails
+        media = process_media_file(media, uploaded_file)
+        
+        # Save the instance
+        media.save()
+        
+        return media
 
 
 class SocialMediaSerializer(serializers.ModelSerializer):

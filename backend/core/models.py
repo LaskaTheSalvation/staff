@@ -1,10 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-class User(AbstractUser):
-    """Custom user with company, role, 2FA, avatar."""
+class User(models.Model):
+    """Custom user model matching the migration structure"""
     ROLE_ADMIN = "admin"
     ROLE_STAFF = "staff"
     ROLE_CHOICES = [
@@ -12,24 +11,32 @@ class User(AbstractUser):
         (ROLE_STAFF, _("Staff")),
     ]
 
-    company = models.ForeignKey(
-        "Company", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="users"
-    )
-    profile_image = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(unique=True)
+    password_hash = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100, blank=True, null=True)
+    profile_image = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_STAFF)
+    is_active = models.BooleanField(default=True)
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=255, blank=True, null=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
-
-    # `username`, `email`, `first_name`, `last_name`, `password`,
-    # `is_active`, `is_staff`, `is_superuser`, dll. sudah diwarisi.
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    company = models.ForeignKey(
+        "Company", on_delete=models.CASCADE,
+        null=True, blank=True, related_name="users"
+    )
 
     class Meta:
         ordering = ["username"]
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+        
+    def get_role_display(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
 
 class Company(models.Model):
 
@@ -324,11 +331,45 @@ class News(models.Model):
 
 
 class Media(models.Model):
-    """Media model matching the media table from the SQL schema"""
+    """Enhanced media model for file uploads with thumbnail and metadata support"""
+    
+    # File type choices
+    TYPE_IMAGE = 'image'
+    TYPE_DOCUMENT = 'document'
+    TYPE_VIDEO = 'video'
+    TYPE_AUDIO = 'audio'
+    TYPE_CHOICES = [
+        (TYPE_IMAGE, 'Image'),
+        (TYPE_DOCUMENT, 'Document'),
+        (TYPE_VIDEO, 'Video'),
+        (TYPE_AUDIO, 'Audio'),
+    ]
+    
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    
+    # Original file information
+    file = models.FileField(upload_to='uploads/%Y/%m/', blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
-    file_path = models.CharField(max_length=255, blank=True, null=True)
-    file_type = models.CharField(max_length=50, blank=True, null=True)
+    file_path = models.CharField(max_length=255, blank=True, null=True)  # For backward compatibility
+    file_type = models.CharField(max_length=50, choices=TYPE_CHOICES, blank=True, null=True)
+    file_size = models.BigIntegerField(null=True, blank=True)  # Size in bytes
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Metadata
+    title = models.CharField(max_length=255, blank=True, null=True)
+    alt_text = models.CharField(max_length=255, blank=True, null=True, help_text="Alternative text for accessibility")
+    description = models.TextField(blank=True, null=True)
+    
+    # Image-specific fields
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    
+    # Thumbnails (for images)
+    thumbnail_small = models.FileField(upload_to='thumbnails/small/%Y/%m/', blank=True, null=True)
+    thumbnail_medium = models.FileField(upload_to='thumbnails/medium/%Y/%m/', blank=True, null=True)
+    thumbnail_large = models.FileField(upload_to='thumbnails/large/%Y/%m/', blank=True, null=True)
+    
+    # Metadata
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -338,7 +379,28 @@ class Media(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return self.file_name or f"Media {self.id}"
+        return self.title or self.file_name or f"Media {self.id}"
+    
+    def get_file_url(self):
+        """Get the URL for the main file"""
+        if self.file:
+            return self.file.url
+        return self.file_path  # Fallback for legacy entries
+    
+    def get_thumbnail_url(self, size='medium'):
+        """Get thumbnail URL for specified size"""
+        thumbnail_field = getattr(self, f'thumbnail_{size}', None)
+        if thumbnail_field and thumbnail_field.name:
+            return thumbnail_field.url
+        return self.get_file_url()  # Fallback to original file
+    
+    def is_image(self):
+        """Check if the media file is an image"""
+        return self.file_type == self.TYPE_IMAGE
+    
+    def get_display_name(self):
+        """Get display name for the media"""
+        return self.title or self.file_name or f"Untitled Media {self.id}"
 
 
 class SocialMedia(models.Model):

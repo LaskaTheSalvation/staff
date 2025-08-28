@@ -161,6 +161,71 @@ class MediaViewSet(viewsets.ModelViewSet):
     queryset = Media.objects.all()
     serializer_class = MediaSerializer
     permission_classes = [AllowAny]
+    
+    def get_serializer_class(self):
+        """Use different serializer for upload action"""
+        if self.action == 'upload':
+            from .serializers import MediaUploadSerializer
+            return MediaUploadSerializer
+        return MediaSerializer
+    
+    def get_queryset(self):
+        """Filter media by company if specified"""
+        queryset = Media.objects.all()
+        company_id = self.request.query_params.get('company_id')
+        file_type = self.request.query_params.get('file_type')
+        
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+        if file_type:
+            queryset = queryset.filter(file_type=file_type)
+        
+        return queryset.order_by('-created_at')
+    
+    @action(detail=False, methods=['post'])
+    def upload(self, request):
+        """Upload a new media file"""
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # Set uploaded_by if user info is available
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                # For now, we'll handle this differently since we're using custom User model
+                pass
+            
+            media = serializer.save()
+            
+            # Return the created media with full details
+            response_serializer = MediaSerializer(media, context={'request': request})
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['delete'])
+    def delete_file(self, request, pk=None):
+        """Delete media file and all associated thumbnails"""
+        media = self.get_object()
+        
+        # Delete files from storage
+        from .utils import delete_media_files
+        delete_media_files(media)
+        
+        # Delete database record
+        media.delete()
+        
+        return Response({'message': 'Media deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=False, methods=['get'])
+    def images(self, request):
+        """Get only image files"""
+        queryset = self.get_queryset().filter(file_type='image')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class SocialMediaViewSet(viewsets.ModelViewSet):
