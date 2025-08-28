@@ -249,6 +249,14 @@ export const contentAPI = {
     get: () => apiService.get('/content/about/'),
     save: (data) => apiService.post('/content/about/', data),
   },
+  directors: {
+    get: () => apiService.get('/content/directors/'),
+    save: (data) => apiService.post('/content/directors/', data),
+  },
+  gallery: {
+    get: () => apiService.get('/content/gallery/'),
+    save: (data) => apiService.post('/content/gallery/', data),
+  },
 };
 
 // Legacy API (for backward compatibility)
