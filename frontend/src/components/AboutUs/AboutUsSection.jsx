@@ -41,8 +41,9 @@ const AboutUsSection = ({ token, companyId }) => {
       );
       setData(prev => ({ ...prev, [fieldKey]: value }));
       setEdit(null);
-    } catch (e) {
+    } catch (err) {
       // handle error (optional: show toast)
+      console.error('Failed to save about us data:', err);
     }
     setSaving(false);
   };

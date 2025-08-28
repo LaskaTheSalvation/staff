@@ -8,7 +8,7 @@ import {
 import ServiceTitleCard from "./components/ServiceTitleCard";
 // Ganti nama import agar lebih jelas dan sesuai dengan fungsinya (menampilkan tabel)
 import ServiceTableCard from "./components/ServiceContentCard"; 
-import { serviceAPI } from "../../services/api"; 
+import { serviceAPI, contentAPI } from "../../services/api"; 
 
 const componentMap = {
   "Title": ServiceTitleCard,
@@ -18,39 +18,79 @@ const componentMap = {
 const dropdownOptions = ["Title", "Table"];
 
 const ServiceSection = () => {
-  const [contents, setContents] = useState(() => {
-    const saved = localStorage.getItem("service_contents");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [contents, setContents] = useState([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [servicesData, setServicesData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load services from API
+  // Load services and content from API
   useEffect(() => {
-    const loadServices = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const data = await serviceAPI.getAll();
-        if (data.results) {
-          setServicesData(data.results);
+        setError(null);
+        
+        // Load both services data and content configuration
+        const [servicesResponse, contentResponse] = await Promise.all([
+          serviceAPI.getAll().catch(() => ({ results: [] })),
+          contentAPI.services.get().catch(() => ({ contents: [] }))
+        ]);
+        
+        if (servicesResponse.results) {
+          setServicesData(servicesResponse.results);
+        }
+        
+        // Load content configuration from API, fallback to localStorage for migration
+        if (contentResponse.contents && contentResponse.contents.length > 0) {
+          setContents(contentResponse.contents);
+        } else {
+          // Migration: try to load from localStorage and save to API
+          const saved = localStorage.getItem("service_contents");
+          if (saved) {
+            const parsedContents = JSON.parse(saved);
+            setContents(parsedContents);
+            // Save to API for migration
+            if (parsedContents.length > 0) {
+              try {
+                await contentAPI.services.save({ contents: parsedContents });
+                localStorage.removeItem("service_contents"); // Clean up after migration
+              } catch (err) {
+                console.warn('Failed to migrate localStorage to API:', err);
+              }
+            }
+          }
         }
       } catch (err) {
-        console.error('Failed to load services:', err);
+        console.error('Failed to load services data:', err);
+        setError('Failed to load services data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    loadServices();
+    loadData();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("service_contents", JSON.stringify(contents));
-  }, [contents]);
+  // Save content to API instead of localStorage
+  const saveContentToAPI = async (newContents) => {
+    if (saving) return; // Prevent multiple simultaneous saves
+    
+    try {
+      setSaving(true);
+      await contentAPI.services.save({ contents: newContents });
+    } catch (err) {
+      console.error('Failed to save content to API:', err);
+      setError('Failed to save changes. Please try again.');
+      // Still update local state for better UX
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const handleAddContent = (type) => {
+  const handleAddContent = async (type) => {
     const id = Date.now() + Math.random();
     let newContent = { id, type };
 
@@ -61,12 +101,30 @@ const ServiceSection = () => {
       newContent.rows = []; // Mulai dengan baris kosong
     }
     
-    setContents(prev => [...prev, newContent]);
+    const newContents = [...contents, newContent];
+    setContents(newContents);
     setShowDropdown(false);
+    
+    // Save to API
+    await saveContentToAPI(newContents);
   };
 
-  const handleRemoveContent = (id) => {
-    setContents((prev) => prev.filter((c) => c.id !== id));
+  const handleRemoveContent = async (id) => {
+    const newContents = contents.filter((c) => c.id !== id);
+    setContents(newContents);
+    
+    // Save to API
+    await saveContentToAPI(newContents);
+  };
+
+  const handleContentChange = async (contentId, updatedRows) => {
+    const newContents = contents.map(card =>
+      card.id === contentId ? { ...card, rows: updatedRows } : card
+    );
+    setContents(newContents);
+    
+    // Save to API
+    await saveContentToAPI(newContents);
   };
 
   return (
@@ -93,6 +151,26 @@ const ServiceSection = () => {
 
       {isExpanded && (
         <div className="space-y-4">
+          {/* Error state */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-red-600 dark:text-red-400 underline text-sm"
+              >
+                Reload page
+              </button>
+            </div>
+          )}
+
+          {/* Saving indicator */}
+          {saving && (
+            <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">Saving changes...</p>
+            </div>
+          )}
+
           {/* Display API data if available */}
           {servicesData.length > 0 && (
             <div className="mb-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-4">
@@ -132,13 +210,7 @@ const ServiceSection = () => {
                   title={content.title}
                   description={content.description}
                   rows={content.rows}
-                  onChangeRows={(updatedRows) => {
-                    setContents(prevContents =>
-                      prevContents.map(card =>
-                        card.id === content.id ? { ...card, rows: updatedRows } : card
-                      )
-                    );
-                  }}
+                  onChangeRows={(updatedRows) => handleContentChange(content.id, updatedRows)}
                 />
               );
             })

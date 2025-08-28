@@ -3,6 +3,7 @@ import { PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/24/so
 import DirectorTitleCard from "./components/DirectorTitleCard";
 import DirectorTextCard from "./components/DirectorTextCard";
 import DirectorProfileCard from "./components/DirectorProfileCard";
+import { contentAPI } from "../../services/api";
 
 const componentMapDirector = {
   Title: DirectorTitleCard,
@@ -12,24 +13,85 @@ const componentMapDirector = {
 const dropdownOptionsDirector = ["Title", "Text", "Profile"];
 
 const DirectorCommissionerSection = () => {
-  const [contents, setContents] = useState(() => {
-    const saved = localStorage.getItem("director_commissioner_contents");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [contents, setContents] = useState([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
+  // Load content from API
   useEffect(() => {
-    localStorage.setItem("director_commissioner_contents", JSON.stringify(contents));
-  }, [contents]);
+    const loadContent = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await contentAPI.directors.get().catch(() => ({ contents: [] }));
+        
+        // Load content from API, fallback to localStorage for migration
+        if (response.contents && response.contents.length > 0) {
+          setContents(response.contents);
+        } else {
+          // Migration: try to load from localStorage and save to API
+          const saved = localStorage.getItem("director_commissioner_contents");
+          if (saved) {
+            const parsedContents = JSON.parse(saved);
+            setContents(parsedContents);
+            // Save to API for migration
+            if (parsedContents.length > 0) {
+              try {
+                await contentAPI.directors.save({ contents: parsedContents });
+                localStorage.removeItem("director_commissioner_contents"); // Clean up after migration
+              } catch (err) {
+                console.warn('Failed to migrate localStorage to API:', err);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load director content:', err);
+        setError('Failed to load director content. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleAddContent = (type) => {
-    setContents((prev) => [...prev, { id: Date.now() + Math.random(), type }]);
-    setShowDropdown(false);
+    loadContent();
+  }, []);
+
+  // Save content to API instead of localStorage
+  const saveContentToAPI = async (newContents) => {
+    if (saving) return; // Prevent multiple simultaneous saves
+    
+    try {
+      setSaving(true);
+      await contentAPI.directors.save({ contents: newContents });
+    } catch (err) {
+      console.error('Failed to save director content to API:', err);
+      setError('Failed to save changes. Please try again.');
+      // Still update local state for better UX
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRemoveContent = (id) => {
-    setContents((prev) => prev.filter((c) => c.id !== id));
+  const handleAddContent = async (type) => {
+    const newContent = { id: Date.now() + Math.random(), type };
+    const newContents = [...contents, newContent];
+    setContents(newContents);
+    setShowDropdown(false);
+    
+    // Save to API
+    await saveContentToAPI(newContents);
+  };
+
+  const handleRemoveContent = async (id) => {
+    const newContents = contents.filter((c) => c.id !== id);
+    setContents(newContents);
+    
+    // Save to API
+    await saveContentToAPI(newContents);
   };
 
   return (
@@ -76,9 +138,36 @@ const DirectorCommissionerSection = () => {
 
       {isExpanded && (
         <>
-          {contents.length === 0 ? (
+          {/* Error state */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-4">
+              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-red-600 dark:text-red-400 underline text-sm"
+              >
+                Reload page
+              </button>
+            </div>
+          )}
+
+          {/* Saving indicator */}
+          {saving && (
+            <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center mb-4">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">Saving changes...</p>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {loading && (
+            <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center mb-4">
+              <p className="text-yellow-800 dark:text-yellow-200">Loading director content...</p>
+            </div>
+          )}
+
+          {contents.length === 0 && !loading ? (
             <div className="bg-white dark:bg-[var(--color-card-secondary)] border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-center text-gray-500 dark:text-black">
-              Belum ada layanan ditambahkan.
+              Belum ada konten director ditambahkan. Klik ikon '+' untuk memulai.
             </div>
           ) : (
             <div className="space-y-4">
