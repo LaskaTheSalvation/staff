@@ -249,6 +249,52 @@ export const contentAPI = {
     get: () => apiService.get('/content/about/'),
     save: (data) => apiService.post('/content/about/', data),
   },
+  gallery: {
+    // Get or create gallery for a company
+    getOrCreate: async (companyId) => {
+      try {
+        // First try to get existing galleries for the company
+        const galleries = await apiService.get(`/galleries/?company_id=${companyId}`);
+        if (galleries.length > 0) {
+          return galleries[0]; // Return first gallery
+        }
+        
+        // If no gallery exists, create a default one
+        const newGallery = await apiService.post('/galleries/', {
+          company: companyId,
+          name: 'Default Gallery',
+          description: 'Main gallery for media content'
+        });
+        return newGallery;
+      } catch (error) {
+        // If company_id is not provided or error occurs, try to get the first available gallery
+        const galleries = await apiService.get('/galleries/');
+        if (galleries.length > 0) {
+          return galleries[0];
+        }
+        
+        // Create a gallery without company association
+        return await apiService.post('/galleries/', {
+          name: 'Default Gallery',
+          description: 'Main gallery for media content'
+        });
+      }
+    },
+    
+    // Standard CRUD operations
+    getById: (id) => apiService.get(`/galleries/${id}/`),
+    create: (data) => apiService.post('/galleries/', data),
+    update: (id, data) => apiService.put(`/galleries/${id}/`, data),
+    delete: (id) => apiService.delete(`/galleries/${id}/`),
+    
+    // Gallery items operations
+    items: {
+      list: (galleryId) => apiService.get(`/galleries/${galleryId}/items/`),
+      add: (galleryId, data) => apiService.post(`/galleries/${galleryId}/items/`, data),
+      update: (galleryId, itemId, data) => apiService.patch(`/galleries/${galleryId}/items/${itemId}/`, data),
+      remove: (galleryId, itemId) => apiService.delete(`/galleries/${galleryId}/items/${itemId}/`)
+    }
+  },
 };
 
 // Legacy API (for backward compatibility)

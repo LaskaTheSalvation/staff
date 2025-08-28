@@ -438,6 +438,39 @@ class Setting(models.Model):
         return f"{self.setting_key} - {self.company.name if self.company else 'Global'}"
 
 
+class Gallery(models.Model):
+    """Gallery model for curated gallery content"""
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Galleries"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.company.name if self.company else 'No Company'}"
+
+
+class GalleryItem(models.Model):
+    """Gallery item model for individual items in a gallery"""
+    gallery = models.ForeignKey(Gallery, on_delete=models.CASCADE, related_name='items')
+    media = models.ForeignKey(Media, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    ordering = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['ordering', 'created_at']
+
+    def __str__(self):
+        return f"{self.gallery.name} - {self.title or self.name or f'Item {self.id}'}"
+
+
 class ContentHistory(models.Model):
     """Content history model matching the content_histories table from the SQL schema"""
     ACTION_CHOICES = [

@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     Company, User, TeamMember, UserLog, Category, HomeContent, 
     AboutUs, Service, Contact, Project, ProjectGallery, Testimonial, 
-    Client, News, Media, SocialMedia, Setting, ContentHistory
+    Client, News, Media, SocialMedia, Setting, ContentHistory,
+    Gallery, GalleryItem
 )
 
 
@@ -230,6 +231,27 @@ class ContentHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ContentHistory
         fields = '__all__'
+
+
+class GalleryItemSerializer(serializers.ModelSerializer):
+    media_details = MediaSerializer(source='media', read_only=True)
+    
+    class Meta:
+        model = GalleryItem
+        fields = ['id', 'gallery', 'media', 'media_details', 'name', 'title', 'ordering', 'created_at', 'updated_at']
+
+
+class GallerySerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    items = GalleryItemSerializer(many=True, read_only=True)
+    items_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Gallery
+        fields = ['id', 'company', 'company_name', 'name', 'description', 'items', 'items_count', 'created_at', 'updated_at']
+    
+    def get_items_count(self, obj):
+        return obj.items.count()
 
 
 # Special serializers for content management
