@@ -50,6 +50,7 @@ def main():
         '/categories/',
         '/user-logs/',
         '/content-history/',
+        '/galleries/',  # New Gallery API endpoint
     ]
     
     successful_tests = 0

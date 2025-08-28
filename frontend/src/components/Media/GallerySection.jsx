@@ -4,97 +4,211 @@ import GalleryTitleCard from "./components/GalleryTitleCard";
 import GalleryPictureCard from "./components/GalleryPictureCard";
 import EnhancedGalleryPictureCard from "./components/EnhancedGalleryPictureCard";
 import GalleryDescriptionCard from "./components/GalleryDescriptionCard";
-import { contentAPI } from "../../services/api";
+import { galleryAPI } from "../../services/api";
+import { useDebounce, migrateLocalStorageData, getCurrentCompanyId } from "../../utils/contentUtils";
 
 const componentMap = {
   Title: GalleryTitleCard,
   Picture: GalleryPictureCard,
-  "Enhanced Picture": EnhancedGalleryPictureCard, // New enhanced version
+  "Enhanced Picture": EnhancedGalleryPictureCard,
   Description: GalleryDescriptionCard,
 };
 
 const dropdownOptions = ["Title", "Enhanced Picture", "Description"];
 
 const GallerySection = () => {
-  const [contents, setContents] = useState([]);
+  const [gallery, setGallery] = useState(null);
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [uiContents, setUiContents] = useState([]); // For Title/Description cards
   const [isExpanded, setIsExpanded] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle');
 
-  // Load content from API
-  useEffect(() => {
-    const loadContent = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await contentAPI.gallery.get().catch(() => ({ contents: [] }));
-        
-        // Load content from API, fallback to localStorage for migration
-        if (response.contents && response.contents.length > 0) {
-          setContents(response.contents);
-        } else {
-          // Migration: try to load from localStorage and save to API
-          const saved = localStorage.getItem("gallery_contents");
-          if (saved) {
-            const parsedContents = JSON.parse(saved);
-            setContents(parsedContents);
-            // Save to API for migration
-            if (parsedContents.length > 0) {
-              try {
-                await contentAPI.gallery.save({ contents: parsedContents });
-                localStorage.removeItem("gallery_contents"); // Clean up after migration
-              } catch (err) {
-                console.warn('Failed to migrate localStorage to API:', err);
-              }
-            }
-          }
+  // Create debounced save function for text edits
+  const debouncedSave = useDebounce(async (itemId, data) => {
+    try {
+      setSaveStatus('saving');
+      await galleryAPI.items.update(gallery.id, itemId, data);
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error('Debounced save failed:', err);
+      setSaveStatus('error');
+    }
+  }, 800);
+
+  // Migrate localStorage data to Gallery API
+  const migrateGalleryData = async () => {
+    const transformFn = async (localStorageContents) => {
+      const uiItems = [];
+      const galleryItems = [];
+      
+      for (const content of localStorageContents) {
+        if (content.type === 'Enhanced Picture' && content.selectedMedia) {
+          galleryItems.push({
+            media: content.selectedMedia.id,
+            name: content.selectedMedia.title || content.selectedMedia.file_name,
+            title: content.selectedMedia.alt_text || '',
+            ordering: galleryItems.length
+          });
+        } else if (content.type === 'Title' || content.type === 'Description') {
+          uiItems.push(content);
         }
-      } catch (err) {
-        console.error('Failed to load gallery content:', err);
-        setError('Failed to load gallery content. Please try again.');
-      } finally {
-        setLoading(false);
       }
+      
+      return { uiItems, galleryItems };
     };
 
-    loadContent();
+    const saveFn = async ({ uiItems, galleryItems }) => {
+      // Get or create gallery
+      const currentGallery = await galleryAPI.getOrCreate(getCurrentCompanyId());
+      
+      // Save gallery items
+      for (const itemData of galleryItems) {
+        await galleryAPI.items.add(currentGallery.id, itemData);
+      }
+      
+      // Keep UI items for local rendering
+      return { gallery: currentGallery, uiItems };
+    };
+
+    try {
+      const result = await migrateLocalStorageData('gallery_contents', transformFn, saveFn);
+      if (result) {
+        return result;
+      }
+    } catch (error) {
+      console.warn('Migration failed:', error);
+    }
+    
+    return null;
+  };
+
+  // Load gallery content from API
+  const loadGalleryContent = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Try migration first
+      const migrationResult = await migrateGalleryData();
+      
+      let currentGallery;
+      if (migrationResult) {
+        currentGallery = migrationResult.gallery;
+        setUiContents(migrationResult.uiItems);
+      } else {
+        // Get or create gallery for current company
+        currentGallery = await galleryAPI.getOrCreate(getCurrentCompanyId());
+        
+        // Load any remaining UI content from localStorage
+        const saved = localStorage.getItem("gallery_contents");
+        if (saved) {
+          const parsedContents = JSON.parse(saved);
+          const uiItems = parsedContents.filter(content => 
+            content.type === 'Title' || content.type === 'Description'
+          );
+          setUiContents(uiItems);
+          
+          // Clean up localStorage if only UI content remains
+          if (uiItems.length === 0) {
+            localStorage.removeItem("gallery_contents");
+          }
+        }
+      }
+      
+      setGallery(currentGallery);
+      
+      // Load gallery items
+      const items = await galleryAPI.items.list(currentGallery.id);
+      setGalleryItems(items);
+      
+    } catch (err) {
+      console.error('Failed to load gallery content:', err);
+      setError('Failed to load gallery content. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGalleryContent();
   }, []);
 
-  // Save content to API instead of localStorage
-  const saveContentToAPI = async (newContents) => {
-    if (saving) return; // Prevent multiple simultaneous saves
-    
+  const handleAddContent = async (type) => {
+    if (type === 'Enhanced Picture') {
+      // This will be handled by EnhancedGalleryPictureCard when media is selected
+      const newUiContent = { 
+        id: Date.now() + Math.random(), 
+        type,
+        awaitingMediaSelection: true 
+      };
+      setUiContents([...uiContents, newUiContent]);
+    } else {
+      // Add UI content (Title/Description)
+      const newContent = { id: Date.now() + Math.random(), type };
+      setUiContents([...uiContents, newContent]);
+    }
+    setShowDropdown(false);
+  };
+
+  const handleRemoveContent = async (id) => {
+    // Check if it's a gallery item or UI content
+    const galleryItem = galleryItems.find(item => item.id === id);
+    if (galleryItem) {
+      try {
+        setSaving(true);
+        await galleryAPI.items.remove(gallery.id, id);
+        setGalleryItems(galleryItems.filter(item => item.id !== id));
+      } catch (err) {
+        console.error('Failed to delete gallery item:', err);
+        setError('Failed to delete gallery item.');
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Remove UI content
+      setUiContents(uiContents.filter(content => content.id !== id));
+    }
+  };
+
+  // Handle media selection from EnhancedGalleryPictureCard
+  const handleMediaSelected = async (uiContentId, selectedMedia) => {
     try {
       setSaving(true);
-      await contentAPI.gallery.save({ contents: newContents });
+      
+      // Create gallery item
+      const newItem = await galleryAPI.items.add(gallery.id, {
+        media: selectedMedia.id,
+        name: selectedMedia.title || selectedMedia.file_name,
+        title: selectedMedia.alt_text || '',
+        ordering: galleryItems.length
+      });
+      
+      setGalleryItems([...galleryItems, newItem]);
+      
+      // Remove the UI content placeholder
+      setUiContents(uiContents.filter(content => content.id !== uiContentId));
+      
     } catch (err) {
-      console.error('Failed to save gallery content to API:', err);
-      setError('Failed to save changes. Please try again.');
-      // Still update local state for better UX
+      console.error('Failed to add gallery item:', err);
+      setError('Failed to add gallery item.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddContent = async (type) => {
-    const newContent = { id: Date.now() + Math.random(), type };
-    const newContents = [...contents, newContent];
-    setContents(newContents);
-    setShowDropdown(false);
+  // Handle item updates (title/name changes)
+  const handleItemDataChange = async (itemId, data) => {
+    // Update local state immediately
+    setGalleryItems(galleryItems.map(item => 
+      item.id === itemId ? { ...item, ...data } : item
+    ));
     
-    // Save to API
-    await saveContentToAPI(newContents);
-  };
-
-  const handleRemoveContent = async (id) => {
-    const newContents = contents.filter((c) => c.id !== id);
-    setContents(newContents);
-    
-    // Save to API
-    await saveContentToAPI(newContents);
+    // Debounced save to API
+    debouncedSave(itemId, data);
   };
 
   return (
@@ -154,6 +268,23 @@ const GallerySection = () => {
             </div>
           )}
 
+          {/* Save status indicator */}
+          {saveStatus === 'saving' && (
+            <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center mb-4">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">Saving changes...</p>
+            </div>
+          )}
+          {saveStatus === 'saved' && (
+            <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3 text-center mb-4">
+              <p className="text-green-800 dark:text-green-200 text-sm">Saved ✓</p>
+            </div>
+          )}
+          {saveStatus === 'error' && (
+            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-3 text-center mb-4">
+              <p className="text-red-800 dark:text-red-200 text-sm">Save failed ✗</p>
+            </div>
+          )}
+
           {/* Saving indicator */}
           {saving && (
             <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-center mb-4">
@@ -168,15 +299,28 @@ const GallerySection = () => {
             </div>
           )}
 
-          {contents.length === 0 && !loading ? (
+          {galleryItems.length === 0 && uiContents.length === 0 && !loading ? (
             <div className="bg-white dark:bg-[var(--color-card-secondary)] border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-sm text-center text-gray-500 dark:text-black">
               Belum ada konten Gallery. Klik tombol ➕ di atas.
             </div>
           ) : (
             <div className="space-y-4">
-              {contents.map((content) => {
+              {/* Render UI content (Title/Description cards) */}
+              {uiContents.map((content) => {
                 const Component = componentMap[content.type];
                 if (!Component) return null;
+                
+                if (content.type === 'Enhanced Picture' && content.awaitingMediaSelection) {
+                  return (
+                    <EnhancedGalleryPictureCard
+                      key={content.id}
+                      id={content.id}
+                      onRemove={handleRemoveContent}
+                      onMediaSelected={(selectedMedia) => handleMediaSelected(content.id, selectedMedia)}
+                    />
+                  );
+                }
+                
                 return (
                   <Component
                     key={content.id}
@@ -185,6 +329,19 @@ const GallerySection = () => {
                   />
                 );
               })}
+              
+              {/* Render Gallery items with media */}
+              {galleryItems.map((item) => (
+                <EnhancedGalleryPictureCard
+                  key={item.id}
+                  id={item.id}
+                  onRemove={handleRemoveContent}
+                  initialMedia={item.media_info}
+                  initialTitle={item.title}
+                  initialName={item.name}
+                  onDataChange={(data) => handleItemDataChange(item.id, data)}
+                />
+              ))}
             </div>
           )}
         </>
