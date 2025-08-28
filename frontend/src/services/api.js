@@ -165,9 +165,38 @@ export const newsAPI = {
 export const mediaAPI = {
   getAll: () => apiService.get('/media/'),
   getById: (id) => apiService.get(`/media/${id}/`),
+  getImages: () => apiService.get('/media/images/'),
   create: (data) => apiService.post('/media/', data),
   update: (id, data) => apiService.put(`/media/${id}/`, data),
   delete: (id) => apiService.delete(`/media/${id}/`),
+  
+  // File upload with FormData
+  upload: async (formData) => {
+    const url = `${API_BASE_URL}/media/upload/`;
+    const config = {
+      method: 'POST',
+      body: formData,  // Don't set Content-Type, let browser set it for multipart
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Media upload failed:', error);
+      throw error;
+    }
+  },
+  
+  // Filter by company
+  getByCompany: (companyId) => apiService.get(`/media/?company_id=${companyId}`),
+  
+  // Filter by type
+  getByType: (fileType) => apiService.get(`/media/?file_type=${fileType}`),
 };
 
 export const socialMediaAPI = {

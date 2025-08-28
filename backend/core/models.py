@@ -331,11 +331,45 @@ class News(models.Model):
 
 
 class Media(models.Model):
-    """Media model matching the media table from the SQL schema"""
+    """Enhanced media model for file uploads with thumbnail and metadata support"""
+    
+    # File type choices
+    TYPE_IMAGE = 'image'
+    TYPE_DOCUMENT = 'document'
+    TYPE_VIDEO = 'video'
+    TYPE_AUDIO = 'audio'
+    TYPE_CHOICES = [
+        (TYPE_IMAGE, 'Image'),
+        (TYPE_DOCUMENT, 'Document'),
+        (TYPE_VIDEO, 'Video'),
+        (TYPE_AUDIO, 'Audio'),
+    ]
+    
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    
+    # Original file information
+    file = models.FileField(upload_to='uploads/%Y/%m/', blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
-    file_path = models.CharField(max_length=255, blank=True, null=True)
-    file_type = models.CharField(max_length=50, blank=True, null=True)
+    file_path = models.CharField(max_length=255, blank=True, null=True)  # For backward compatibility
+    file_type = models.CharField(max_length=50, choices=TYPE_CHOICES, blank=True, null=True)
+    file_size = models.BigIntegerField(null=True, blank=True)  # Size in bytes
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Metadata
+    title = models.CharField(max_length=255, blank=True, null=True)
+    alt_text = models.CharField(max_length=255, blank=True, null=True, help_text="Alternative text for accessibility")
+    description = models.TextField(blank=True, null=True)
+    
+    # Image-specific fields
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    
+    # Thumbnails (for images)
+    thumbnail_small = models.FileField(upload_to='thumbnails/small/%Y/%m/', blank=True, null=True)
+    thumbnail_medium = models.FileField(upload_to='thumbnails/medium/%Y/%m/', blank=True, null=True)
+    thumbnail_large = models.FileField(upload_to='thumbnails/large/%Y/%m/', blank=True, null=True)
+    
+    # Metadata
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -345,7 +379,28 @@ class Media(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return self.file_name or f"Media {self.id}"
+        return self.title or self.file_name or f"Media {self.id}"
+    
+    def get_file_url(self):
+        """Get the URL for the main file"""
+        if self.file:
+            return self.file.url
+        return self.file_path  # Fallback for legacy entries
+    
+    def get_thumbnail_url(self, size='medium'):
+        """Get thumbnail URL for specified size"""
+        thumbnail_field = getattr(self, f'thumbnail_{size}', None)
+        if thumbnail_field and thumbnail_field.name:
+            return thumbnail_field.url
+        return self.get_file_url()  # Fallback to original file
+    
+    def is_image(self):
+        """Check if the media file is an image"""
+        return self.file_type == self.TYPE_IMAGE
+    
+    def get_display_name(self):
+        """Get display name for the media"""
+        return self.title or self.file_name or f"Untitled Media {self.id}"
 
 
 class SocialMedia(models.Model):
