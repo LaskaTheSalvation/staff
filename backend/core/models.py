@@ -1,10 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-class User(AbstractUser):
-    """Custom user with company, role, 2FA, avatar."""
+class User(models.Model):
+    """Custom user model matching the migration structure"""
     ROLE_ADMIN = "admin"
     ROLE_STAFF = "staff"
     ROLE_CHOICES = [
@@ -12,24 +11,32 @@ class User(AbstractUser):
         (ROLE_STAFF, _("Staff")),
     ]
 
-    company = models.ForeignKey(
-        "Company", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="users"
-    )
-    profile_image = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(unique=True)
+    password_hash = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100, blank=True, null=True)
+    profile_image = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_STAFF)
+    is_active = models.BooleanField(default=True)
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_secret = models.CharField(max_length=255, blank=True, null=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
-
-    # `username`, `email`, `first_name`, `last_name`, `password`,
-    # `is_active`, `is_staff`, `is_superuser`, dll. sudah diwarisi.
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    company = models.ForeignKey(
+        "Company", on_delete=models.CASCADE,
+        null=True, blank=True, related_name="users"
+    )
 
     class Meta:
         ordering = ["username"]
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+        
+    def get_role_display(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
 
 class Company(models.Model):
 

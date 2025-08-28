@@ -1,10 +1,10 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-import AboutUs from "../pages/staff/induk/AboutUs";
-import Contacts from "../pages/staff/induk/Contacts";
-import Home from "../pages/staff/induk/Home";
-import Media from "../pages/staff/induk/Media";
-import Service from "../pages/staff/induk/Service";
+import AboutUs from "../Pages/staff/induk/AboutUs";
+import Contacts from "../Pages/staff/induk/Contacts";
+import Home from "../Pages/staff/induk/Home";
+import Media from "../Pages/staff/induk/Media";
+import Service from "../Pages/staff/induk/Service";
 
 const StaffRouter = () => (
   <Routes>

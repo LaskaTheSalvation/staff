@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     "core",
 ]
 
-AUTH_USER_MODEL = "core.User"
+# Temporarily commented out since we're using regular User model
+# AUTH_USER_MODEL = "core.User"
 
 
 MIDDLEWARE = [
@@ -81,20 +82,29 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Use SQLite for development when MySQL is not available
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "bumi_kartanegara"),
-        "USER": os.getenv("DB_USER", "root"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+# Original MySQL configuration (commented out for development)
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": os.getenv("DB_NAME", "bumi_kartanegara"),
+#         "USER": os.getenv("DB_USER", "root"),
+#         "PASSWORD": os.getenv("DB_PASSWORD", ""),
+#         "HOST": os.getenv("DB_HOST", "localhost"),
+#         "PORT": os.getenv("DB_PORT", "3306"),
+#         "OPTIONS": {
+#             "charset": "utf8mb4",
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -135,6 +145,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# Media files (uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

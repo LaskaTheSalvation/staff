@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout/Layout";
-import StaffLogin from "./pages/login/StaffLogin";
+import StaffLogin from "./Pages/login/StaffLogin";
 import StaffRoutes from "./routes/StaffRouter";
 import ProtectedRoute from "./routes/ProtectedRoute"; // Tambahkan ini
 
