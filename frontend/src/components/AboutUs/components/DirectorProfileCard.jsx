@@ -1,19 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   XMarkIcon, TrashIcon, CheckIcon, PencilSquareIcon, PlusIcon
 } from "@heroicons/react/24/solid";
 
-const DirectorProfileCard = ({ id, onRemove, profileNo }) => {
-  // Satu table: Picture, Title, Description (masing-masing row tunggal, tapi bisa multi jika perlu)
-  const [pictureRows, setPictureRows] = useState([
-    { id: Date.now() + Math.random(), nama: "", file: null, isEditing: true },
-  ]);
-  const [titleRows, setTitleRows] = useState([
-    { id: Date.now() + Math.random(), nama: "", isEditing: true },
-  ]);
-  const [descRows, setDescRows] = useState([
-    { id: Date.now() + Math.random(), nama: "", isEditing: true },
-  ]);
+const DirectorProfileCard = ({ id, onRemove, profileNo, initialData, onDataChange }) => {
+  // Initialize state from props or defaults
+  const [pictureRows, setPictureRows] = useState(() => {
+    return initialData?.pictureRows || [
+      { id: Date.now() + Math.random(), nama: "", file: null, isEditing: true },
+    ];
+  });
+  
+  const [titleRows, setTitleRows] = useState(() => {
+    return initialData?.titleRows || [
+      { id: Date.now() + Math.random(), nama: "", isEditing: true },
+    ];
+  });
+  
+  const [descRows, setDescRows] = useState(() => {
+    return initialData?.descRows || [
+      { id: Date.now() + Math.random(), nama: "", isEditing: true },
+    ];
+  });
+
+  // Notify parent component when data changes
+  useEffect(() => {
+    if (onDataChange) {
+      onDataChange(id, {
+        pictureRows,
+        titleRows,
+        descRows,
+      });
+    }
+  }, [pictureRows, titleRows, descRows, id, onDataChange]);
 
   // Picture row handler
   const handlePictureName = (rowId, value) => {

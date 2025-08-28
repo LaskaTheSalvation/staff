@@ -94,6 +94,22 @@ const DirectorCommissionerSection = () => {
     await saveContentToAPI(newContents);
   };
 
+  // Handle profile data changes from DirectorProfileCard
+  const handleProfileDataChange = async (profileId, profileData) => {
+    const newContents = contents.map(content => 
+      content.id === profileId 
+        ? { ...content, profileData }
+        : content
+    );
+    setContents(newContents);
+    
+    // Save to API with a small delay to avoid too many API calls
+    clearTimeout(window.directorSaveTimeout);
+    window.directorSaveTimeout = setTimeout(() => {
+      saveContentToAPI(newContents);
+    }, 1000);
+  };
+
   return (
     <section className="mb-10">
       <div className="flex items-center gap-2 pl-3 mb-4">
@@ -180,6 +196,8 @@ const DirectorCommissionerSection = () => {
                     id={content.id}
                     onRemove={handleRemoveContent}
                     profileNo={content.type === "Profile" ? i + 1 : undefined}
+                    initialData={content.profileData}
+                    onDataChange={content.type === "Profile" ? handleProfileDataChange : undefined}
                   />
                 );
               })}

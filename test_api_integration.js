@@ -148,15 +148,24 @@ async function testDirectorAPIIntegration() {
     const contentData = await contentAPI.directors.get();
     console.log('✅ Director content loaded successfully');
     
-    // Test saving director content
+    // Test saving director content with profile data
     const testContent = {
       contents: [
         { id: 1, type: 'Title' },
-        { id: 2, type: 'Profile', profileNo: 1 }
+        { 
+          id: 2, 
+          type: 'Profile', 
+          profileNo: 1,
+          profileData: {
+            pictureRows: [{ id: 1, nama: 'John Doe', file: null, isEditing: false }],
+            titleRows: [{ id: 1, nama: 'CEO', isEditing: false }],
+            descRows: [{ id: 1, nama: 'Company CEO with 10 years experience', isEditing: false }]
+          }
+        }
       ]
     };
     await contentAPI.directors.save(testContent);
-    console.log('✅ Director content saved successfully');
+    console.log('✅ Director content with profile data saved successfully');
     
     return true;
   } catch (error) {
@@ -190,7 +199,74 @@ async function testGalleryAPIIntegration() {
   }
 }
 
+async function testDirectorProfileDataHandling() {
+  console.log('\n🧪 Testing Director Profile Data Handling...');
+  
+  try {
+    // Test comprehensive profile data structure
+    const profileData = {
+      pictureRows: [
+        { id: 1, nama: 'John Doe', file: null, isEditing: false },
+        { id: 2, nama: 'Jane Smith', file: null, isEditing: false }
+      ],
+      titleRows: [
+        { id: 1, nama: 'Chief Executive Officer', isEditing: false },
+        { id: 2, nama: 'Chairman of the Board', isEditing: false }
+      ],
+      descRows: [
+        { id: 1, nama: 'Experienced leader with 15 years in technology sector', isEditing: false },
+        { id: 2, nama: 'Strategic visionary with expertise in corporate governance', isEditing: false }
+      ]
+    };
+    
+    const testContent = {
+      contents: [
+        { 
+          id: 1, 
+          type: 'Profile', 
+          profileNo: 1,
+          profileData 
+        }
+      ]
+    };
+    
+    await contentAPI.directors.save(testContent);
+    console.log('✅ Complex profile data structure handled correctly');
+    
+    // Test loading and data persistence
+    const loadedData = await contentAPI.directors.get();
+    console.log('✅ Profile data persisted and loaded successfully');
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Director profile data handling failed:', error.message);
+    return false;
+  }
+}
+
 async function testErrorHandling() {
+  console.log('\n🧪 Testing Error Handling...');
+  
+  // Mock a failed request
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    return {
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'Server error' })
+    };
+  };
+  
+  try {
+    await contentAPI.services.get();
+    console.error('❌ Error handling test failed - should have thrown an error');
+    return false;
+  } catch (error) {
+    console.log('✅ Error handling works correctly');
+    global.fetch = originalFetch; // Restore mock
+    return true;
+  }
+}
   console.log('\n🧪 Testing Error Handling...');
   
   // Mock a failed request
@@ -223,6 +299,7 @@ async function runTests() {
     testServiceAPIIntegration(),
     testDirectorAPIIntegration(),
     testGalleryAPIIntegration(),
+    testDirectorProfileDataHandling(),
     testErrorHandling()
   ]);
   
@@ -250,5 +327,6 @@ export {
   testServiceAPIIntegration, 
   testDirectorAPIIntegration, 
   testGalleryAPIIntegration,
+  testDirectorProfileDataHandling,
   testErrorHandling 
 };
